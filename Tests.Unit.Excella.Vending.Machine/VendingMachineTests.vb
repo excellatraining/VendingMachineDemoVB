@@ -57,12 +57,41 @@ Public Class VendingMachineTests
     End Sub
 
     <Test>
-    Public Sub BuyProduct_WhenPaymentMade_CallsPaymentProcessorToProcessPurchase()
+    Public Sub BuyProduct_WhenEnoughMoneyInserted_ExpectProduct()
         vendingMachine.InsertCoin()
         vendingMachine.InsertCoin()
 
         Dim result = vendingMachine.BuyProduct
 
         Assert.That(result, [Is].Not.Null)
+    End Sub
+
+    <Test>
+    Public Sub GetMessage_WhenNoMoneyInserted_ExpectMoneyPrompt()
+        vendingMachine.BuyProduct()
+
+        Assert.That(vendingMachine.Message, [Is].EqualTo("Please insert money"))
+    End Sub
+
+    <Test>
+    Public Sub GetMessage_WhenEnoughMoneyInserted_ExpectEnjoyPrompt()
+        vendingMachine.InsertCoin()
+        vendingMachine.InsertCoin()
+
+        vendingMachine.BuyProduct()
+
+        Dim message = vendingMachine.Message
+
+        Assert.That(message, [Is].EqualTo("Enjoy!"))
+    End Sub
+
+    <Test>
+    Public Sub ReleaseChange_WhenPressed_ResetsBalanceToZero()
+        vendingMachine.InsertCoin()
+        vendingMachine.ReleaseChange()
+
+        Dim result = vendingMachine.ReleaseChange()
+
+        Assert.That(result, [Is].EqualTo(0))
     End Sub
 End Class
