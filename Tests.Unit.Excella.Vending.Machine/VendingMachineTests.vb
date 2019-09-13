@@ -1,18 +1,23 @@
 ﻿
+Imports Excella.Vending.Domain
 Imports Excella.Vending.Machine
+Imports Moq
 Imports NUnit.Framework
 
 <TestFixture>
 Public Class VendingMachineTests
     Private vendingMachine As VendingMachine
+    Private paymentProcessor As Mock(Of IPaymentProcessor)
 
     <SetUp>
     Public Sub Setup()
-        vendingMachine = New VendingMachine
+        paymentProcessor = New Mock(Of IPaymentProcessor)
+        vendingMachine = New VendingMachine(paymentProcessor.Object)
     End Sub
 
     <Test>
     Public Sub ReleaseChange_WhenNoMoneyInserted_ExpectZero()
+        paymentProcessor.Setup(Function(p) p.Payment).Returns(0)
 
         Dim result = vendingMachine.ReleaseChange
 
@@ -21,7 +26,7 @@ Public Class VendingMachineTests
 
     <Test>
     Public Sub ReleaseChange_WhenOneCoinInserted_Expect25()
-        vendingMachine.InsertCoin()
+        paymentProcessor.Setup(Function(p) p.Payment).Returns(25)
 
         Dim result = vendingMachine.ReleaseChange
 
@@ -29,45 +34,45 @@ Public Class VendingMachineTests
     End Sub
 
     <Test>
-    Public Sub ReleaseChange_WhenTwoCoinInserted_Expect50()
-        vendingMachine.InsertCoin()
-        vendingMachine.InsertCoin()
-
-        Dim result = vendingMachine.ReleaseChange
-
-        Assert.That(result, [Is].EqualTo(50))
-    End Sub
-
-    <Test>
-    Public Sub ReleaseChange_WhenThreeCoinInserted_Expect75()
-        vendingMachine.InsertCoin()
-        vendingMachine.InsertCoin()
-        vendingMachine.InsertCoin()
-
-        Dim result = vendingMachine.ReleaseChange
-
-        Assert.That(result, [Is].EqualTo(75))
-    End Sub
-
-    <Test>
     Public Sub BuyProduct_WhenNoMoneyInserted_ExpectNull()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(False)
+
         Dim result = vendingMachine.BuyProduct()
 
         Assert.That(result, [Is].Null)
     End Sub
 
     <Test>
-    Public Sub BuyProduct_WhenEnoughMoneyInserted_ExpectProduct()
-        vendingMachine.InsertCoin()
-        vendingMachine.InsertCoin()
+    Public Sub BuyProduct_WhenEnoughMoneyInserted_CallsPaymentProcessorToProcessPurchase()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(True)
 
-        Dim result = vendingMachine.BuyProduct
+        vendingMachine.BuyProduct()
+
+        paymentProcessor.Verify(Sub(p) p.ProcessPurchase(), Times.Once())
+    End Sub
+
+    <Test>
+    Public Sub BuyProduct_WhenNoMoneyInserted_DoesNotCallPaymentProcessorToProcessPurchase()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(False)
+
+        vendingMachine.BuyProduct()
+
+        paymentProcessor.Verify(Sub(p) p.ProcessPurchase(), Times.Never())
+    End Sub
+
+    <Test>
+    Public Sub BuyProduct_WhenEnoughMoneyInserted_ExpectProduct()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(True)
+
+        Dim result = vendingMachine.BuyProduct()
 
         Assert.That(result, [Is].Not.Null)
     End Sub
 
     <Test>
     Public Sub GetMessage_WhenNoMoneyInserted_ExpectMoneyPrompt()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(False)
+
         vendingMachine.BuyProduct()
 
         Assert.That(vendingMachine.Message, [Is].EqualTo("Please insert money"))
@@ -75,8 +80,7 @@ Public Class VendingMachineTests
 
     <Test>
     Public Sub GetMessage_WhenEnoughMoneyInserted_ExpectEnjoyPrompt()
-        vendingMachine.InsertCoin()
-        vendingMachine.InsertCoin()
+        paymentProcessor.Setup(Function(p) p.HasSufficientBalance()).Returns(True)
 
         vendingMachine.BuyProduct()
 
@@ -86,12 +90,20 @@ Public Class VendingMachineTests
     End Sub
 
     <Test>
-    Public Sub ReleaseChange_WhenPressed_ResetsBalanceToZero()
-        vendingMachine.InsertCoin()
+    Public Sub ReleaseChange_WhenCoinInserted_CallsPaymentProcessorToResetPayment()
+        paymentProcessor.Setup(Function(p) p.Payment).Returns(25)
+
         vendingMachine.ReleaseChange()
 
-        Dim result = vendingMachine.ReleaseChange()
-
-        Assert.That(result, [Is].EqualTo(0))
+        paymentProcessor.Verify(Sub(p) p.ClearPayment(), Times.Once)
     End Sub
+
+
+    <Test>
+    Public Sub ReleaseChange_WhenNoCoinInserted_DoesNotCallPaymentProcessorToResetPayment()
+        vendingMachine.ReleaseChange()
+
+        paymentProcessor.Verify(Sub(p) p.ClearPayment(), Times.Never)
+    End Sub
+
 End Class

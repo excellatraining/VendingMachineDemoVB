@@ -101,5 +101,11 @@
       <LastGenOutput>Settings.Designer.vb</LastGenOutput>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Excella.Vending.Domain\Excella.Vending.Domain.vbproj">
+      <Project>{a8c6f97c-371c-49f6-8b24-dce7766bf227}</Project>
+      <Name>Excella.Vending.Domain</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

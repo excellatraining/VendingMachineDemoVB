@@ -1,20 +1,32 @@
-﻿Public Class VendingMachine
-    Private balance As Integer = 0
+﻿Imports Excella.Vending.Domain
+
+Public Class VendingMachine
+    Private paymentProcessor As IPaymentProcessor
+
     Public Property Message As String
 
+    Public Sub New(payProcessor As IPaymentProcessor)
+        paymentProcessor = payProcessor
+    End Sub
+
+
     Public Function ReleaseChange() As Integer
-        Dim change = balance
-        balance = 0
+        Dim change = paymentProcessor.Payment
+
+        If change > 0 Then
+            paymentProcessor.ClearPayment()
+        End If
 
         Return change
     End Function
 
     Public Sub InsertCoin()
-        balance += 25
+        paymentProcessor.ProcessPayment(25)
     End Sub
 
     Public Function BuyProduct() As Product
-        If balance >= 50 Then
+        If paymentProcessor.HasSufficientBalance() Then
+            paymentProcessor.ProcessPurchase()
             Message = "Enjoy!"
             Return New Product
         End If
