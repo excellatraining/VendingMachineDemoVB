@@ -3,6 +3,12 @@
 Public Class VendingMachine
     Private paymentProcessor As IPaymentProcessor
 
+    Public ReadOnly Property Balance As Double
+        Get
+            Return paymentProcessor.Payment
+        End Get
+    End Property
+
     Public Property Message As String
 
     Public Sub New(payProcessor As IPaymentProcessor)
