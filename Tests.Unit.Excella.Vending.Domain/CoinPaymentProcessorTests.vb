@@ -1,17 +1,23 @@
-﻿Imports Excella.Vending.Domain
+﻿Imports Excella.Vending.DAL
+Imports Excella.Vending.Domain
+Imports Moq
 Imports NUnit.Framework
 
 <TestFixture>
 Public Class CoinPaymentProcessorTests
     Dim paymentProcessor As CoinPaymentProcessor
+    Dim paymentDao As Mock(Of IPaymentDao)
 
     <SetUp>
     Public Sub SetUp()
-        paymentProcessor = New CoinPaymentProcessor()
+        paymentDao = New Mock(Of IPaymentDao)
+        paymentProcessor = New CoinPaymentProcessor(paymentDao.Object)
     End Sub
 
     <Test>
     Public Sub Payment_WhenNoMoney_ExpectBalanceIsZero()
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(0)
+
         Dim result = paymentProcessor.Payment
 
         Assert.That(result, [Is].EqualTo(0))
@@ -19,7 +25,7 @@ Public Class CoinPaymentProcessorTests
 
     <Test>
     Public Sub Payment_WhenHasMoney_ExpectBalanceIsNotZero()
-        paymentProcessor.ProcessPayment(25)
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(25)
 
         Dim result = paymentProcessor.Payment
 
@@ -28,6 +34,8 @@ Public Class CoinPaymentProcessorTests
 
     <Test>
     Public Sub HasSufficientBalance_WhenNoMoney_ExpectFalse()
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(0)
+
         Dim result = paymentProcessor.HasSufficientBalance()
 
         Assert.That(result, [Is].EqualTo(False))
@@ -35,7 +43,7 @@ Public Class CoinPaymentProcessorTests
 
     <Test>
     Public Sub HasSufficientBalance_WhenLessThan50Cents_ExpectFalse()
-        paymentProcessor.ProcessPayment(25)
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(25)
 
         Dim actual = paymentProcessor.HasSufficientBalance()
 
@@ -45,7 +53,7 @@ Public Class CoinPaymentProcessorTests
 
     <Test>
     Public Sub HasSufficientBalance_When50Cents_ExpectTrue()
-        paymentProcessor.ProcessPayment(50)
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(50)
 
         Dim actual = paymentProcessor.HasSufficientBalance()
 
@@ -55,7 +63,7 @@ Public Class CoinPaymentProcessorTests
 
     <Test>
     Public Sub HasSufficientBalance_WhenGreaterThan50Cents_ExpectTrue()
-        paymentProcessor.ProcessPayment(75)
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(75)
 
         Dim actual = paymentProcessor.HasSufficientBalance()
 
@@ -63,31 +71,39 @@ Public Class CoinPaymentProcessorTests
     End Sub
 
     <Test>
-    Public Sub ProcessPayment_WhenPaymentMade_ExpectBalanceUpdated()
+    Public Sub ProcessPayment_WhenPaymentMade_ExpectSavedToDB()
+        paymentDao.Setup(Sub(p) p.SavePayment(It.IsAny(Of Integer)())).Verifiable()
+
         paymentProcessor.ProcessPayment(25)
 
-        Assert.That(paymentProcessor.Payment, [Is].EqualTo(25))
+        paymentDao.Verify(Sub(p) p.SavePayment(25), Times.Once)
     End Sub
 
 
     <Test>
-    Public Sub ProcessPurchase_WhenPurchaseMade_ExpectBalanceReduced()
-        paymentProcessor.ProcessPayment(75)
-
+    Public Sub ProcessPurchase_WhenPurchaseMade_ExpectSavedToDb()
         paymentProcessor.ProcessPurchase()
 
-        Assert.That(paymentProcessor.Payment, [Is].EqualTo(25))
+        paymentDao.Verify(Sub(p) p.SavePurchase(), Times.Once)
     End Sub
 
 
     <Test>
-    Public Sub ClearPayment_WhenPaymentHasBeenMade_ExpectBalanceIsZero()
-        paymentProcessor.ProcessPayment(25)
+    Public Sub ClearPayment_WhenPaymentHasBeenMade_TellsDaoToClearPayment()
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(25)
 
         paymentProcessor.ClearPayment()
 
-        Assert.That(paymentProcessor.Payment, [Is].EqualTo(0))
+        paymentDao.Verify(Sub(p) p.ClearPayment(), Times.Once)
     End Sub
 
+    <Test>
+    Public Sub ClearPayment_WhenNoPaymentHasBeenMade_DoesNotTellDaoToClearPayment()
+        paymentDao.Setup(Function(p) p.RetrievePayment()).Returns(0)
+
+        paymentProcessor.ClearPayment()
+
+        paymentDao.Verify(Sub(p) p.ClearPayment(), Times.Never)
+    End Sub
 
 End Class
